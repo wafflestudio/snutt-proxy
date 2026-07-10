@@ -13,6 +13,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test ./...
 
@@ -41,16 +42,3 @@ jobs:
             . \
             --platform linux/arm64
           docker push $OCIR_REGISTRY/$OCIR_NAMESPACE/$OCIR_REPOSITORY:$IMAGE_TAG
-
-  notify:
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Slack Notify
-        uses: rtCamp/action-slack-notify@v2.3.3
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_CHANNEL: team-snutt-deploy
-          SLACK_TITLE: NEW RELEASE
-          SLACK_USERNAME: snutt-proxy
-          SLACK_MESSAGE: Check <https://argocd.wafflestudio.com|Argo CD> for updated environment

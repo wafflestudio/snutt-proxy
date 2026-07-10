@@ -1,48 +1,28 @@
 # snutt-proxy
 
-Reverse proxy that makes SNU sugang syllabus pages (강의계획서) accessible from SNUTT clients.
-
-## Why
-
-`sugang.snu.ac.kr` redirects to its main page unless the `Referer` header is under `*.snu.ac.kr`.
-This applies to the syllabus page itself and to the ajax endpoints that load its tab contents,
-and browsers cannot set `Referer` themselves, so the previous libproxy-based workaround broke
-when SNU tightened the check. This proxy forwards requests with the required `Referer` attached.
-
-Paths are mounted identically to the upstream so the page works without any HTML rewriting:
-its root-relative asset links (`/kor/...`, `/adm/...`) and ajax calls (`/sugang/cc/...`)
-resolve against this host and are forwarded as-is.
+Reverse proxy for SNU sugang syllabus pages (강의계획서).
+sugang.snu.ac.kr redirects to its main page unless `Referer` is under `*.snu.ac.kr`,
+so this proxy forwards requests with the required `Referer` attached, using the same
+paths as the upstream so the page works without HTML rewriting.
 
 ## Routes
 
-| Route | Methods | Purpose |
-|---|---|---|
-| `/sugang/cc/{action}` (only `cc1XX(ajax)?.action`) | GET, POST | syllabus page, tab data ajax, excel download |
-| `/kor/**`, `/adm/**` | GET | static assets |
-| `/healthz` | GET | health check |
+- `GET/POST /sugang/cc/{action}` — only `cc1XX(ajax)?.action`
+- `GET /kor/**`, `/adm/**` — static assets
+- `GET /healthz`
 
-Anything else returns 404. Cookies are stripped in both directions.
-Static asset responses get `Cache-Control: public, max-age=86400` when upstream sends none.
+Anything else is 404. Cookies are stripped in both directions.
 
 ## Development
 
 ```sh
-go run .          # listens on :8080 (override with PORT)
+go run .          # :8080, override with PORT
 go test ./...
 ```
 
-With Nix: `nix develop` for a shell with the Go toolchain, or `nix run` to build and run.
-
 ## Deployment
 
-Pushing to `main` builds a linux/arm64 image and pushes it to OCIR as
+Pushing to `main` builds and pushes
 `yny.ocir.io/ax1dvc8vmenm/snutt-prod/snutt-proxy:<run number>`.
-
-Kubernetes manifests live in
-[waffle-world-oci](https://github.com/wafflestudio/waffle-world-oci) under
-`argocd/snutt-prod/snutt-proxy/`; bump the image tag there to release.
-A single deployment serves every environment since the proxy has no
-environment-specific behavior.
-
-Served at `https://snutt-proxy.wafflestudio.com`. The snutt API returns syllabus links
-pointing at this host from `GET /v1/course_books/official`.
+Manifests are in [waffle-world-oci](https://github.com/wafflestudio/waffle-world-oci)
+under `argocd/snutt-prod/snutt-proxy/`. Served at `https://snutt-proxy.wafflestudio.com`.
