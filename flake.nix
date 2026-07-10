@@ -1,6 +1,4 @@
 {
-  description = "Reverse proxy for SNU sugang syllabus pages";
-
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = { self, nixpkgs }:
