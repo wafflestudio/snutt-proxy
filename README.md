@@ -36,12 +36,13 @@ With Nix: `nix develop` for a shell with the Go toolchain, or `nix run` to build
 ## Deployment
 
 Pushing to `main` builds a linux/arm64 image and pushes it to OCIR as
-`yny.ocir.io/ax1dvc8vmenm/snutt-{dev,prod}/snutt-proxy:<run number>`.
+`yny.ocir.io/ax1dvc8vmenm/snutt-prod/snutt-proxy:<run number>`.
 
 Kubernetes manifests live in
 [waffle-world-oci](https://github.com/wafflestudio/waffle-world-oci) under
-`argocd/snutt-{dev,prod}/snutt-proxy/`; bump the image tag there to release.
+`argocd/snutt-prod/snutt-proxy/`; bump the image tag there to release.
+A single deployment serves every environment since the proxy has no
+environment-specific behavior.
 
-Served at `https://snutt-proxy.wafflestudio.com` (prod) and
-`https://snutt-proxy-dev.wafflestudio.com` (dev). The snutt API returns syllabus links
-pointing at these hosts from `GET /v1/course_books/official`.
+Served at `https://snutt-proxy.wafflestudio.com`. The snutt API returns syllabus links
+pointing at this host from `GET /v1/course_books/official`.
