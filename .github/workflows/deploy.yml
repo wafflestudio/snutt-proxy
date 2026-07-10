@@ -1,0 +1,57 @@
+name: deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-24.04-arm
+
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+      OCIR_REGISTRY: yny.ocir.io
+      OCIR_NAMESPACE: ax1dvc8vmenm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to OCIR
+        run: echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login $OCIR_REGISTRY -u ax1dvc8vmenm/members/snutt-deployer --password-stdin
+
+      - name: Docker build, tag, and push image to OCIR
+        run: |
+          docker build \
+            -t $OCIR_REGISTRY/$OCIR_NAMESPACE/snutt-dev/snutt-proxy:$IMAGE_TAG \
+            -t $OCIR_REGISTRY/$OCIR_NAMESPACE/snutt-prod/snutt-proxy:$IMAGE_TAG \
+            . \
+            --platform linux/arm64
+          docker push $OCIR_REGISTRY/$OCIR_NAMESPACE/snutt-dev/snutt-proxy:$IMAGE_TAG
+          docker push $OCIR_REGISTRY/$OCIR_NAMESPACE/snutt-prod/snutt-proxy:$IMAGE_TAG
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack Notify
+        uses: rtCamp/action-slack-notify@v2.3.3
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: team-snutt-deploy
+          SLACK_TITLE: NEW RELEASE
+          SLACK_USERNAME: snutt-proxy
+          SLACK_MESSAGE: Check <https://argocd.wafflestudio.com|Argo CD> for updated environment
