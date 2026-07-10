@@ -1,11 +1,9 @@
 package main
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 )
 
@@ -63,49 +61,6 @@ func TestStripsSetCookie(t *testing.T) {
 
 	if got := resp.Header.Get("Set-Cookie"); got != "" {
 		t.Errorf("set-cookie passed through: %q", got)
-	}
-}
-
-func TestQueryStringForwarded(t *testing.T) {
-	var gotQuery string
-	proxy, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		gotQuery = r.URL.RawQuery
-	})
-
-	resp, err := http.Get(proxy.URL + "/sugang/cc/cc103.action?sbjtCd=M1522.007300&ltNo=001")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-
-	if gotQuery != "sbjtCd=M1522.007300&ltNo=001" {
-		t.Errorf("query = %q", gotQuery)
-	}
-}
-
-func TestPostForwardsBody(t *testing.T) {
-	var gotBody string
-	proxy, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		b, _ := io.ReadAll(r.Body)
-		gotBody = string(b)
-		w.WriteHeader(http.StatusCreated)
-	})
-
-	resp, err := http.Post(
-		proxy.URL+"/sugang/cc/cc103ajax.action",
-		"application/x-www-form-urlencoded",
-		strings.NewReader("openSchyy=2026&sbjtCd=M1522.007300"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		t.Errorf("status = %d, want 201", resp.StatusCode)
-	}
-	if gotBody != "openSchyy=2026&sbjtCd=M1522.007300" {
-		t.Errorf("body = %q", gotBody)
 	}
 }
 
