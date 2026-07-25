@@ -22,6 +22,10 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04-arm
 
+    concurrency:
+      group: deploy-${{ github.workflow }}
+      cancel-in-progress: true
+
     env:
       IMAGE_TAG: ${{ github.run_number }}
       OCIR_REGISTRY: yny.ocir.io
@@ -42,3 +46,11 @@ jobs:
             . \
             --platform linux/arm64
           docker push $OCIR_REGISTRY/$OCIR_NAMESPACE/$OCIR_REPOSITORY:$IMAGE_TAG
+
+      - name: Update GitOps image tag
+        uses: wafflestudio/waffle-world-oci/.github/actions/update-image@main
+        with:
+          image: ${{ env.OCIR_REGISTRY }}/${{ env.OCIR_NAMESPACE }}/${{ env.OCIR_REPOSITORY }}
+          tag: ${{ env.IMAGE_TAG }}
+          overlay-path: argocd/${{ env.OCIR_REPOSITORY }}
+          private-key: ${{ secrets.DEPLOYER_APP_PRIVATE_KEY }}
