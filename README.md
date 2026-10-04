@@ -7,11 +7,11 @@ paths as the upstream so the page works without HTML rewriting.
 
 ## Routes
 
-- `GET/POST /sugang/cc/{action}` — only `cc1XX(ajax)?.action`
-- `GET /kor/**`, `/adm/**` — static assets
-- `GET /healthz`
+- `GET/POST /sugang/cc/{action}`: only `cc1XX(ajax)?.action`
+- `GET /kor/**`, `/adm/**`: static assets. Paths with a `..` segment are 404. 2xx and 304 responses without `Cache-Control` get `Cache-Control: public, max-age=86400`.
+- `GET /healthz`: not written to the access log
 
-Anything else is 404. Cookies are stripped in both directions.
+Other paths and actions are 404. `GET` routes also accept `HEAD`. A listed path with another method is 405. `/kor` and `/adm` redirect to `/kor/` and `/adm/`. Cookies are stripped in both directions. A request whose client disconnects before the upstream responds is logged with status 499.
 
 ## Development
 
