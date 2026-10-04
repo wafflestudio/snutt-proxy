@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Login to OCIR
-        run: echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login $OCIR_REGISTRY -u ax1dvc8vmenm/members/waffle-deployer --password-stdin
+        run: echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login $OCIR_REGISTRY -u ax1dvc8vmenm/members/snutt-deployer --password-stdin
 
       - name: Docker build, tag, and push image to OCIR
         run: |
