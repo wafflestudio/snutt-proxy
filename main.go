@@ -17,9 +17,15 @@ import (
 
 const upstreamBase = "https://sugang.snu.ac.kr"
 
+const statusClientClosedRequest = 499
+
 var allowedAction = regexp.MustCompile(`^cc1\d{2}(ajax)?\.action$`)
 
 func newProxy(upstream *url.URL) *httputil.ReverseProxy {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = 100
+	transport.ResponseHeaderTimeout = 15 * time.Second
+
 	return &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
 			r.SetURL(upstream)
@@ -30,20 +36,33 @@ func newProxy(upstream *url.URL) *httputil.ReverseProxy {
 			resp.Header.Del("Set-Cookie")
 			path := resp.Request.URL.Path
 			if (strings.HasPrefix(path, "/kor/") || strings.HasPrefix(path, "/adm/")) &&
-				resp.StatusCode < 400 && resp.Header.Get("Cache-Control") == "" {
+				(resp.StatusCode < 300 || resp.StatusCode == http.StatusNotModified) &&
+				resp.Header.Get("Cache-Control") == "" {
 				resp.Header.Set("Cache-Control", "public, max-age=86400")
 			}
 			return nil
 		},
-		Transport: &http.Transport{
-			ResponseHeaderTimeout: 15 * time.Second,
-			IdleConnTimeout:       90 * time.Second,
-		},
+		Transport: transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if r.Context().Err() != nil {
+				w.WriteHeader(statusClientClosedRequest)
+				return
+			}
 			log.Printf("upstream error: %s %s: %v", r.Method, r.URL.Path, err)
 			http.Error(w, "upstream error", http.StatusBadGateway)
 		},
 	}
+}
+
+func hasParentSegment(path string) bool {
+	segments := strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == '\\' })
+	for _, segment := range segments {
+		name, _, _ := strings.Cut(segment, ";")
+		if name == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 func newHandler(proxy http.Handler) http.Handler {
@@ -64,8 +83,7 @@ func newHandler(proxy http.Handler) http.Handler {
 	mux.HandleFunc("POST /sugang/cc/{action}", proxyAction)
 
 	proxyStatic := func(w http.ResponseWriter, r *http.Request) {
-		escapedPath := r.URL.EscapedPath()
-		if strings.Contains(escapedPath, "..") || strings.Contains(strings.ToLower(escapedPath), "%2e") {
+		if hasParentSegment(r.URL.Path) {
 			http.NotFound(w, r)
 			return
 		}
@@ -79,6 +97,10 @@ func newHandler(proxy http.Handler) http.Handler {
 
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
